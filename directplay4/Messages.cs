@@ -3,21 +3,18 @@ using System.Runtime.InteropServices;
 
 namespace DirectPlay4;
 
-interface IMessage<T>
-    where T : unmanaged, IMessage<T>, allows ref struct
+interface IMessage<T> where T : unmanaged, IMessage<T>, allows ref struct
 {
     public static unsafe int Size => sizeof(T);
 }
 
-interface ICommand<T> : IMessage<T>
-    where T : unmanaged, ICommand<T>, allows ref struct
+interface ICommand<T> : IMessage<T> where T : unmanaged, ICommand<T>, allows ref struct
 {
     public static abstract int CommandId { get; }
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-unsafe ref struct SOCKADDR_IN
-    : IMessage<SOCKADDR_IN>
+unsafe ref struct SOCKADDR_IN : IMessage<SOCKADDR_IN>
 {
     public short Family;
     public ushort Port;
@@ -26,16 +23,14 @@ unsafe ref struct SOCKADDR_IN
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-ref struct DPSP_MSG_HEADER
-    : IMessage<DPSP_MSG_HEADER>
+ref struct DPSP_MSG_HEADER : IMessage<DPSP_MSG_HEADER>
 {
     public int Mixed;
     public SOCKADDR_IN SockAddr;
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-unsafe ref struct DPSP_MSG_ENVELOPE
-    : IMessage<DPSP_MSG_ENVELOPE>
+unsafe ref struct DPSP_MSG_ENVELOPE : IMessage<DPSP_MSG_ENVELOPE>
 {
     public fixed byte Magic[4];
     public short CommandId;
@@ -51,8 +46,7 @@ unsafe ref struct DPSP_MSG_ENVELOPE
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-unsafe ref struct DPSESSIONDESC2
-    : IMessage<DPSESSIONDESC2>
+unsafe ref struct DPSESSIONDESC2 : IMessage<DPSESSIONDESC2>
 {
     public int StructSize;
     public FLAGS Flags;
@@ -86,8 +80,7 @@ unsafe ref struct DPSESSIONDESC2
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-ref struct DPSECURITYDESC
-    : IMessage<DPSECURITYDESC>
+ref struct DPSECURITYDESC : IMessage<DPSECURITYDESC>
 {
     public int Size;
     public int Flags;
@@ -98,8 +91,7 @@ ref struct DPSECURITYDESC
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-ref struct DPLAYI_PACKEDPLAYER
-    : IMessage<DPLAYI_PACKEDPLAYER>
+ref struct DPLAYI_PACKEDPLAYER : IMessage<DPLAYI_PACKEDPLAYER>
 {
     public int Size;
     public FLAGS Flags;
@@ -125,8 +117,7 @@ ref struct DPLAYI_PACKEDPLAYER
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-ref struct DPLAYI_SUPERPACKEDPLAYER
-    : IMessage<DPLAYI_SUPERPACKEDPLAYER>
+ref struct DPLAYI_SUPERPACKEDPLAYER : IMessage<DPLAYI_SUPERPACKEDPLAYER>
 {
     public int Size;
     public FLAGS Flags;
@@ -165,8 +156,7 @@ ref struct DPLAYI_SUPERPACKEDPLAYER
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-ref struct DPSP_MSG_ENUMSESSIONSREPLY
-    : ICommand<DPSP_MSG_ENUMSESSIONSREPLY>
+ref struct DPSP_MSG_ENUMSESSIONSREPLY : ICommand<DPSP_MSG_ENUMSESSIONSREPLY>
 {
     public static int CommandId => 1;
 
@@ -175,8 +165,7 @@ ref struct DPSP_MSG_ENUMSESSIONSREPLY
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-ref struct DPSP_MSG_ENUMSESSIONS
-    : ICommand<DPSP_MSG_ENUMSESSIONS>
+ref struct DPSP_MSG_ENUMSESSIONS : ICommand<DPSP_MSG_ENUMSESSIONS>
 {
     public static int CommandId => 2;
 
@@ -199,8 +188,7 @@ ref struct DPSP_MSG_ENUMSESSIONS
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-ref struct DPSP_MSG_REQUESTPLAYERID
-    : ICommand<DPSP_MSG_REQUESTPLAYERID>
+ref struct DPSP_MSG_REQUESTPLAYERID : ICommand<DPSP_MSG_REQUESTPLAYERID>
 {
     public static int CommandId => 5;
 
@@ -215,8 +203,7 @@ ref struct DPSP_MSG_REQUESTPLAYERID
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-ref struct DPSP_MSG_REQUESTPLAYERREPLY
-    : ICommand<DPSP_MSG_REQUESTPLAYERREPLY>
+ref struct DPSP_MSG_REQUESTPLAYERREPLY : ICommand<DPSP_MSG_REQUESTPLAYERREPLY>
 {
     public static int CommandId => 7;
 
@@ -228,8 +215,7 @@ ref struct DPSP_MSG_REQUESTPLAYERREPLY
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-ref struct DPSP_MSG_ADDFORWARDREQUEST
-    : ICommand<DPSP_MSG_ADDFORWARDREQUEST>
+ref struct DPSP_MSG_ADDFORWARDREQUEST : ICommand<DPSP_MSG_ADDFORWARDREQUEST>
 {
     public static int CommandId => 19;
 
@@ -241,8 +227,7 @@ ref struct DPSP_MSG_ADDFORWARDREQUEST
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-ref struct DPSP_MSG_SUPERENUMPLAYERSREPLY
-    : ICommand<DPSP_MSG_SUPERENUMPLAYERSREPLY>
+ref struct DPSP_MSG_SUPERENUMPLAYERSREPLY : ICommand<DPSP_MSG_SUPERENUMPLAYERSREPLY>
 {
     public static int CommandId => 41;
 
