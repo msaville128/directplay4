@@ -6,5 +6,8 @@ csharp_library(
     allow_unsafe_blocks = True,
     nullable = "enable",
     target_frameworks = ["net10.0"],
-    visibility = ["//visibility:public"]
+    visibility = ["//visibility:public"],
+    deps = [
+        "@packages//microsoft.extensions.dependencyinjection.abstractions",
+    ],
 )

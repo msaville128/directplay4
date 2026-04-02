@@ -1,0 +1,18 @@
+load("@rules_dotnet//dotnet:defs.bzl", "csharp_binary")
+
+csharp_binary(
+    name = "server",
+    srcs = glob(["*.cs"]),
+    nullable = "enable",
+    target_frameworks = ["net10.0"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//directplay4",
+        "@packages//microsoft.extensions.dependencyinjection.abstractions",
+        "@packages//microsoft.extensions.hosting",
+        "@packages//microsoft.extensions.hosting.abstractions",
+        "@packages//microsoft.extensions.logging",
+        "@packages//microsoft.extensions.logging.abstractions",
+        "@packages//microsoft.extensions.logging.console",
+    ],
+)
