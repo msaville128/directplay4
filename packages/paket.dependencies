@@ -1,0 +1,5 @@
+# Whenever you make changes to this file, run:
+#   bazel run //packages:update
+
+source https://api.nuget.org/v3/index.json
+storage: none
