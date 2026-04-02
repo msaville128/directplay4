@@ -3,6 +3,9 @@ using System.Runtime.InteropServices;
 
 namespace DirectPlay4;
 
+// Only fixed-length data are defined here!
+// Variable-length data are appended at the end of the message.
+
 interface IMessage<T> where T : unmanaged, IMessage<T>, allows ref struct
 {
     public static unsafe int Size => sizeof(T);
