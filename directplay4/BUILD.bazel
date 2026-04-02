@@ -9,5 +9,7 @@ csharp_library(
     visibility = ["//visibility:public"],
     deps = [
         "@packages//microsoft.extensions.dependencyinjection.abstractions",
+        "@packages//microsoft.extensions.hosting.abstractions",
+        "@packages//microsoft.extensions.logging.abstractions",
     ],
 )
