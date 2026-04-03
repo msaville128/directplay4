@@ -59,7 +59,7 @@ class EnumerationService(ILogger<EnumerationService> logger)
     {
         if (message.Header.CommandId != DPSP_MSG_ENUMSESSIONS.CommandId)
         {
-            LogRejection(message, "invalid command " + message.Header.CommandId);
+            LogRejection(message, "unexpected command " + message.Header.CommandId);
             return;
         }
 
