@@ -6,18 +6,14 @@ namespace DirectPlay4;
 // Only fixed-length data are defined here!
 // Variable-length data are appended at the end of the message.
 
-interface IMessage<T> where T : unmanaged, IMessage<T>, allows ref struct
-{
-    public static unsafe int Size => sizeof(T);
-}
-
-interface ICommand<T> : IMessage<T> where T : unmanaged, ICommand<T>, allows ref struct
+interface ICommand<T> where T : unmanaged, ICommand<T>
 {
     public static abstract int CommandId { get; }
 }
 
+// https://learn.microsoft.com/en-us/openspecs/windows_protocols/mc-dpl4cs/0f4f646d-9327-44a9-bb4c-2fd72df2e95d
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-unsafe ref struct SOCKADDR_IN : IMessage<SOCKADDR_IN>
+unsafe struct SOCKADDR_IN
 {
     public short Family;
     public ushort Port;
@@ -25,19 +21,18 @@ unsafe ref struct SOCKADDR_IN : IMessage<SOCKADDR_IN>
     fixed byte Padding[8];
 }
 
+// https://learn.microsoft.com/en-us/openspecs/windows_protocols/mc-dpl4cs/caf0ddbe-d56d-474f-9c2a-f47c84cc0da9
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-ref struct DPSP_MSG_HEADER : IMessage<DPSP_MSG_HEADER>
+unsafe struct DPSP_MSG_HEADER
 {
     public int Mixed;
     public SOCKADDR_IN SockAddr;
-}
-
-[StructLayout(LayoutKind.Sequential, Pack = 1)]
-unsafe ref struct DPSP_MSG_ENVELOPE : IMessage<DPSP_MSG_ENVELOPE>
-{
     public fixed byte Magic[4];
     public short CommandId;
     public short Version;
+
+    public readonly uint Token => ((uint)Mixed & 0xFFF00000) >> 20;
+    public readonly int Size => Mixed & 0x000FFFFF;
 
     public bool HasValidMagic =>
     (
@@ -48,8 +43,9 @@ unsafe ref struct DPSP_MSG_ENVELOPE : IMessage<DPSP_MSG_ENVELOPE>
     );
 }
 
+// https://learn.microsoft.com/en-us/openspecs/windows_protocols/mc-dpl4cs/8743fe84-59ab-4e98-b0a0-362aa8ce9b1d
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-unsafe ref struct DPSESSIONDESC2 : IMessage<DPSESSIONDESC2>
+unsafe struct DPSESSIONDESC2
 {
     public int StructSize;
     public FLAGS Flags;
@@ -82,8 +78,9 @@ unsafe ref struct DPSESSIONDESC2 : IMessage<DPSESSIONDESC2>
     }
 }
 
+// https://learn.microsoft.com/en-us/openspecs/windows_protocols/mc-dpl4cs/f9651796-2e3c-4864-903d-f5bed9db5f9f
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-ref struct DPSECURITYDESC : IMessage<DPSECURITYDESC>
+struct DPSECURITYDESC
 {
     public int Size;
     public int Flags;
@@ -93,8 +90,9 @@ ref struct DPSECURITYDESC : IMessage<DPSECURITYDESC>
     public int EncryptionAlgorithm;
 }
 
+// https://learn.microsoft.com/en-us/openspecs/windows_protocols/mc-dpl4cs/b557f8cc-683d-4198-9d96-5c303d7456cb
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-ref struct DPLAYI_PACKEDPLAYER : IMessage<DPLAYI_PACKEDPLAYER>
+struct DPLAYI_PACKEDPLAYER
 {
     public int Size;
     public FLAGS Flags;
@@ -119,8 +117,9 @@ ref struct DPLAYI_PACKEDPLAYER : IMessage<DPLAYI_PACKEDPLAYER>
     }
 }
 
+// https://learn.microsoft.com/en-us/openspecs/windows_protocols/mc-dpl4cs/59101f7c-5cee-4490-891c-ec799089eb55
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-ref struct DPLAYI_SUPERPACKEDPLAYER : IMessage<DPLAYI_SUPERPACKEDPLAYER>
+struct DPLAYI_SUPERPACKEDPLAYER
 {
     public int Size;
     public FLAGS Flags;
@@ -158,8 +157,9 @@ ref struct DPLAYI_SUPERPACKEDPLAYER : IMessage<DPLAYI_SUPERPACKEDPLAYER>
     }
 }
 
+// https://learn.microsoft.com/en-us/openspecs/windows_protocols/mc-dpl4cs/9f61f223-88e8-4436-88ed-62b68ea23c86
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-ref struct DPSP_MSG_ENUMSESSIONSREPLY : ICommand<DPSP_MSG_ENUMSESSIONSREPLY>
+struct DPSP_MSG_ENUMSESSIONSREPLY : ICommand<DPSP_MSG_ENUMSESSIONSREPLY>
 {
     public static int CommandId => 1;
 
@@ -167,8 +167,9 @@ ref struct DPSP_MSG_ENUMSESSIONSREPLY : ICommand<DPSP_MSG_ENUMSESSIONSREPLY>
     public int NameOffset;
 }
 
+// https://learn.microsoft.com/en-us/openspecs/windows_protocols/mc-dpl4cs/998a213f-f3d4-4613-92b9-41c1739bfcf5
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-ref struct DPSP_MSG_ENUMSESSIONS : ICommand<DPSP_MSG_ENUMSESSIONS>
+struct DPSP_MSG_ENUMSESSIONS : ICommand<DPSP_MSG_ENUMSESSIONS>
 {
     public static int CommandId => 2;
 
@@ -190,8 +191,9 @@ ref struct DPSP_MSG_ENUMSESSIONS : ICommand<DPSP_MSG_ENUMSESSIONS>
     }
 }
 
+// https://learn.microsoft.com/en-us/openspecs/windows_protocols/mc-dpl4cs/2d1f82b1-552c-45ef-8814-b95a6891dd62
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-ref struct DPSP_MSG_REQUESTPLAYERID : ICommand<DPSP_MSG_REQUESTPLAYERID>
+struct DPSP_MSG_REQUESTPLAYERID : ICommand<DPSP_MSG_REQUESTPLAYERID>
 {
     public static int CommandId => 5;
 
@@ -205,8 +207,9 @@ ref struct DPSP_MSG_REQUESTPLAYERID : ICommand<DPSP_MSG_REQUESTPLAYERID>
     }
 }
 
+// https://learn.microsoft.com/en-us/openspecs/windows_protocols/mc-dpl4cs/44e7485d-4567-411b-bbe6-b778246f8167
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-ref struct DPSP_MSG_REQUESTPLAYERREPLY : ICommand<DPSP_MSG_REQUESTPLAYERREPLY>
+struct DPSP_MSG_REQUESTPLAYERREPLY : ICommand<DPSP_MSG_REQUESTPLAYERREPLY>
 {
     public static int CommandId => 7;
 
@@ -217,8 +220,9 @@ ref struct DPSP_MSG_REQUESTPLAYERREPLY : ICommand<DPSP_MSG_REQUESTPLAYERREPLY>
     public int Result;
 }
 
+// https://learn.microsoft.com/en-us/openspecs/windows_protocols/mc-dpl4cs/3ad794ac-e734-48ea-b3f1-639103d9c3c3
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-ref struct DPSP_MSG_ADDFORWARDREQUEST : ICommand<DPSP_MSG_ADDFORWARDREQUEST>
+struct DPSP_MSG_ADDFORWARDREQUEST : ICommand<DPSP_MSG_ADDFORWARDREQUEST>
 {
     public static int CommandId => 19;
 
@@ -229,8 +233,9 @@ ref struct DPSP_MSG_ADDFORWARDREQUEST : ICommand<DPSP_MSG_ADDFORWARDREQUEST>
     public int PasswordOffset;
 }
 
+// https://learn.microsoft.com/en-us/openspecs/windows_protocols/mc-dpl4cs/2f253701-52af-4f7f-8e7e-3d48c191cf89
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-ref struct DPSP_MSG_SUPERENUMPLAYERSREPLY : ICommand<DPSP_MSG_SUPERENUMPLAYERSREPLY>
+struct DPSP_MSG_SUPERENUMPLAYERSREPLY : ICommand<DPSP_MSG_SUPERENUMPLAYERSREPLY>
 {
     public static int CommandId => 41;
 
