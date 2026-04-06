@@ -55,9 +55,14 @@ class EnumerationService
             }
 
             SessionFilter filter = CreateFilter(message.WithPayload<DPSP_MSG_ENUMSESSIONS>().Payload);
-            logger.LogInformation("Received from {remote} ({filter})", result.RemoteEndPoint, filter);
+            logger.LogDebug("Received from {remote} ({filter})", result.RemoteEndPoint, filter);
 
-            OutgoingMessage response = OutgoingMessage.To((IPEndPoint)result.RemoteEndPoint);
+            // send to the TCP port provided in the incoming message's header
+            OutgoingMessage response = OutgoingMessage.To(new IPEndPoint(
+                address: ((IPEndPoint)result.RemoteEndPoint).Address,
+                port: (ushort)IPAddress.NetworkToHostOrder((short)message.Header.SockAddr.Port)
+            ));
+
             foreach (Session session in filter.Apply(sessions))
             {
                 DPSP_MSG_ENUMSESSIONSREPLY reply = new();
@@ -95,7 +100,7 @@ class EnumerationService
             return SessionFilter.Empty;
         }
 
-        // the ALL flag isn't checked because it's presumed to be the default
+        // the ALL flag isn't checked here because it's presumed to be the default
         if (request.Flags.HasFlag(DPSP_MSG_ENUMSESSIONS.FLAGS.AVAILABLE))
         {
             filter = filter.WithJoinableOnly();

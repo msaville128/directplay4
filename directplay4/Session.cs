@@ -5,7 +5,7 @@ namespace DirectPlay4;
 /// <summary>
 ///  An immutable DirectPlay session.
 /// </summary>
-record Session
+public record Session
 {
     /// <summary>
     ///  The name of this session.
