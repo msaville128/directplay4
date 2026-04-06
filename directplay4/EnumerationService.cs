@@ -3,7 +3,9 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 
 namespace DirectPlay4;
@@ -11,114 +13,94 @@ namespace DirectPlay4;
 /// <summary>
 ///  A persistent service for handling session enumeration requests from clients over UDP.
 /// </summary>
-class EnumerationService(ILogger<EnumerationService> logger)
+class EnumerationService
+    (
+        ILogger<EnumerationService> logger,
+        Channel<OutgoingMessage> output,
+        ActiveSessions sessions
+    )
     : BackgroundService
 {
     const int BroadcastPort = 47624;
-    const int BufferSize = 0x10000; // max datagram size
-    const int MaxPasswordLength = 16;
 
     /// <summary>
-    ///  Continuously listens for DPSP_MSG_ENUMSESSIONS requests over UDP and responds back to the
-    ///  request with sessions over both UDP and TCP.
+    ///  Continuously listens for DPSP_MSG_ENUMSESSIONS requests over UDP and responds with sessions
+    ///  matching the request.
     /// </summary>
     protected override async Task ExecuteAsync(CancellationToken cancellation)
     {
-        logger.LogInformation("DirectPlay enumeration service started.");
+        logger.LogInformation("DirectPlay enumeration service started");
+
+        // DPSP_MSG_ENUMSESSIONS messages are broadcast over UDP
+        using Socket inbound = new(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
 
         IPEndPoint localEndpoint = new(IPAddress.Any, BroadcastPort);
+        inbound.Bind(localEndpoint);
 
-        using Socket socket = new(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-        socket.Bind(localEndpoint);
-
-        Memory<byte> buffer = new byte[BufferSize];
+        Memory<byte> buffer = new byte[0x10000]; // max datagram size
         while (!cancellation.IsCancellationRequested)
         {
-            var result = await socket.ReceiveFromAsync(buffer, localEndpoint, cancellation);
-            var message = IncomingMessage.Create(
-                (IPEndPoint)result.RemoteEndPoint,
-                buffer.Span[..result.ReceivedBytes]
-            );
+            var result = await inbound.ReceiveFromAsync(buffer, localEndpoint, cancellation);
+            IncomingMessage message = IncomingMessage.Create(buffer.Span[..result.ReceivedBytes]);
 
-            if (!message.IsValid)
+            bool isValidMessage =
+                message.IsValid &&
+                message.Header.CommandId == DPSP_MSG_ENUMSESSIONS.CommandId &&
+                message.HasPayloadSizeFor<DPSP_MSG_ENUMSESSIONS>();
+
+            if (!isValidMessage)
             {
-                LogRejection(message, "invalid message");
+                logger.LogDebug("Discarded invalid message from {remote}", result.RemoteEndPoint);
                 continue;
             }
 
-            HandleMessage(message);
+            SessionFilter filter = CreateFilter(message.WithPayload<DPSP_MSG_ENUMSESSIONS>().Payload);
+            logger.LogInformation("Received from {remote} ({filter})", result.RemoteEndPoint, filter);
+
+            OutgoingMessage response = OutgoingMessage.To((IPEndPoint)result.RemoteEndPoint);
+            foreach (Session session in filter.Apply(sessions))
+            {
+                DPSP_MSG_ENUMSESSIONSREPLY reply = new();
+                unsafe { reply.SessionDesc.StructSize = sizeof(DPSESSIONDESC2); }
+
+                reply.SessionDesc.Application = session.Application;
+                reply.SessionDesc.CurrentPlayers = session.CurrentPlayers;
+                reply.SessionDesc.MaxPlayers = session.MaxPlayers;
+
+                response.Enqueue(reply, (reply, writer) =>
+                {
+                    reply.NameOffset = (int)writer.BaseStream.Position;
+                    writer.Write(Encoding.Unicode.GetBytes(session.Name + '\0'));
+                });
+            }
+
+            // if the outgoing message queue is full, then just drop the message
+            _ = output.Writer.TryWrite(response);
         }
 
-        logger.LogInformation("DirectPlay enumeration service stopped.");
+        logger.LogInformation("DirectPlay enumeration service stopped");
     }
 
     /// <summary>
-    ///  Handles an incoming DirectPlay message.
+    ///  Creates a session filter for the incoming request.
     /// </summary>
-    void HandleMessage(IncomingMessage message)
+    SessionFilter CreateFilter(DPSP_MSG_ENUMSESSIONS request)
     {
-        if (message.Header.CommandId != DPSP_MSG_ENUMSESSIONS.CommandId)
+        SessionFilter filter = SessionFilter.Default
+            .WithApplication(request.Application);
+
+        // password protected sessions are unsupported
+        if (request.PasswordOffset is not 0)
         {
-            LogRejection(message, "unexpected command " + message.Header.CommandId);
-            return;
+            return SessionFilter.Empty;
         }
 
-        if (!message.HasPayloadSizeFor<DPSP_MSG_ENUMSESSIONS>())
-        {
-            LogRejection(message, "payload too small");
-            return;
-        }
-
-        EnumerateSessions(message.WithPayload<DPSP_MSG_ENUMSESSIONS>());
-    }
-
-    /// <summary>
-    ///  Enumerates sessions matching the request.
-    /// </summary>
-    void EnumerateSessions(IncomingMessage<DPSP_MSG_ENUMSESSIONS> message)
-    {
-        DPSP_MSG_ENUMSESSIONS request = message.Payload;
-
-        // TODO: Refactor this method to be called BuildSessionCriteria.
-        // TODO: var criteria = SessionCriteria.Default.WithApplication()
-
-        if (request.Flags.HasFlag(DPSP_MSG_ENUMSESSIONS.FLAGS.PASSWORD_REQUIRED))
-        {
-            if (request.PasswordOffset is 0)
-            {
-                LogRejection(message.Base, "PR flag set but no password provided");
-                return;
-            }
-
-            if (!message.TryReadCString(request.PasswordOffset, out ReadOnlySpan<char> password))
-            {
-                LogRejection(message.Base, "invalid password offset");
-                return;
-            }
-
-            if (password.Length > MaxPasswordLength)
-            {
-                LogRejection(message.Base, $"invalid password length ({password.Length} chars)");
-                return;
-            }
-
-            // TODO: criteria = criteria.WithPassword(password);
-        }
-
+        // the ALL flag isn't checked because it's presumed to be the default
         if (request.Flags.HasFlag(DPSP_MSG_ENUMSESSIONS.FLAGS.AVAILABLE))
         {
-            // TODO: criteria = criteria.WithJoinableOnly(true);
+            filter = filter.WithJoinableOnly();
         }
 
-        // TODO: return criteria;
-    }
-
-    void LogRejection(IncomingMessage message, string reason)
-    {
-        if (logger.IsEnabled(LogLevel.Debug))
-        {
-            string dataHexString = Convert.ToHexString(message.Data);
-            logger.LogDebug("Rejected packet (reason: {reason})\n{data}", reason, dataHexString);
-        }
+        return filter;
     }
 }

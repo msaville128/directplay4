@@ -182,12 +182,7 @@ struct DPSP_MSG_ENUMSESSIONS : ICommand<DPSP_MSG_ENUMSESSIONS>
     {
         AVAILABLE = 1,
         ALL = 2,
-        PREVIOUS = 4,
-        NO_REFRESH = 8,
-        ASYNC = 16,
-        STOP_ASYNC = 32,
         PASSWORD_REQUIRED = 64,
-        RETURN_STATUS = 128,
     }
 }
 

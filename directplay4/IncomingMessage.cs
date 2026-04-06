@@ -1,5 +1,4 @@
 using System;
-using System.Net;
 using System.Runtime.InteropServices;
 
 namespace DirectPlay4;
@@ -20,11 +19,6 @@ unsafe readonly ref struct IncomingMessage
     public readonly ReadOnlySpan<byte> Data;
 
     /// <summary>
-    ///  The endpoint of the client that sent this message.
-    /// </summary>
-    public readonly IPEndPoint? RemoteEndpoint;
-
-    /// <summary>
     ///  An indication of whether this message contains a DirectPlay envelope.
     /// </summary>
     public bool IsValid => !Data.IsEmpty && Header.HasValidMagic;
@@ -32,10 +26,8 @@ unsafe readonly ref struct IncomingMessage
     /// <remarks>
     ///  Use <see cref="Create"/> to create an <see cref="IncomingMessage"/> instance.
     /// </remarks>
-    IncomingMessage(IPEndPoint remoteEndpoint, ReadOnlySpan<byte> data)
+    IncomingMessage(ReadOnlySpan<byte> data)
     {
-        RemoteEndpoint = remoteEndpoint;
-
         Data = data;
         if (Data.Length >= sizeof(DPSP_MSG_HEADER))
         {
@@ -46,9 +38,9 @@ unsafe readonly ref struct IncomingMessage
     /// <summary>
     ///  Decodes the incoming packet as a DirectPlay message.
     /// </summary>
-    public static IncomingMessage Create(IPEndPoint remoteEndpoint, ReadOnlySpan<byte> data)
+    public static IncomingMessage Create(ReadOnlySpan<byte> data)
     {
-        return new IncomingMessage(remoteEndpoint, data);
+        return new IncomingMessage(data);
     }
 
     /// <summary>
