@@ -8,7 +8,7 @@ namespace DirectPlay4;
 
 interface ICommand<T> where T : unmanaged, ICommand<T>
 {
-    public static abstract int CommandId { get; }
+    public static abstract short CommandId { get; }
 }
 
 // https://learn.microsoft.com/en-us/openspecs/windows_protocols/mc-dpl4cs/0f4f646d-9327-44a9-bb4c-2fd72df2e95d
@@ -31,8 +31,17 @@ unsafe struct DPSP_MSG_HEADER
     public short CommandId;
     public short Version;
 
-    public readonly uint Token => ((uint)Mixed & 0xFFF00000) >> 20;
-    public readonly int Size => Mixed & 0x000FFFFF;
+    public uint Token
+    {
+        readonly get => ((uint)Mixed & 0xFFF00000) >> 20;
+        set => Mixed = (int)(((uint)Mixed & 0x000FFFFF) | ((value & 0xFFF) << 20));
+    }
+
+    public int Size
+    {
+        readonly get => Mixed & 0x000FFFFF;
+        set => Mixed = (int)((Mixed & 0xFFF00000) | ((uint)value & 0x000FFFFF));
+    }
 
     public bool HasValidMagic =>
     (
@@ -161,7 +170,7 @@ struct DPLAYI_SUPERPACKEDPLAYER
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 struct DPSP_MSG_ENUMSESSIONSREPLY : ICommand<DPSP_MSG_ENUMSESSIONSREPLY>
 {
-    public static int CommandId => 1;
+    public static short CommandId => 1;
 
     public DPSESSIONDESC2 SessionDesc;
     public int NameOffset;
@@ -171,7 +180,7 @@ struct DPSP_MSG_ENUMSESSIONSREPLY : ICommand<DPSP_MSG_ENUMSESSIONSREPLY>
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 struct DPSP_MSG_ENUMSESSIONS : ICommand<DPSP_MSG_ENUMSESSIONS>
 {
-    public static int CommandId => 2;
+    public static short CommandId => 2;
 
     public Guid Application;
     public int PasswordOffset;
@@ -190,7 +199,7 @@ struct DPSP_MSG_ENUMSESSIONS : ICommand<DPSP_MSG_ENUMSESSIONS>
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 struct DPSP_MSG_REQUESTPLAYERID : ICommand<DPSP_MSG_REQUESTPLAYERID>
 {
-    public static int CommandId => 5;
+    public static short CommandId => 5;
 
     public FLAGS Flags;
 
@@ -206,7 +215,7 @@ struct DPSP_MSG_REQUESTPLAYERID : ICommand<DPSP_MSG_REQUESTPLAYERID>
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 struct DPSP_MSG_REQUESTPLAYERREPLY : ICommand<DPSP_MSG_REQUESTPLAYERREPLY>
 {
-    public static int CommandId => 7;
+    public static short CommandId => 7;
 
     public int PlayerId;
     public DPSECURITYDESC SecDesc;
@@ -219,7 +228,7 @@ struct DPSP_MSG_REQUESTPLAYERREPLY : ICommand<DPSP_MSG_REQUESTPLAYERREPLY>
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 struct DPSP_MSG_ADDFORWARDREQUEST : ICommand<DPSP_MSG_ADDFORWARDREQUEST>
 {
-    public static int CommandId => 19;
+    public static short CommandId => 19;
 
     public int IdTo;
     public int PlayerId;
@@ -232,7 +241,7 @@ struct DPSP_MSG_ADDFORWARDREQUEST : ICommand<DPSP_MSG_ADDFORWARDREQUEST>
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 struct DPSP_MSG_SUPERENUMPLAYERSREPLY : ICommand<DPSP_MSG_SUPERENUMPLAYERSREPLY>
 {
-    public static int CommandId => 41;
+    public static short CommandId => 41;
 
     public int PlayerCount;
     public int GroupCount;
