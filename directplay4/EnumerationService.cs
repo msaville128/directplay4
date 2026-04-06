@@ -67,7 +67,7 @@ class EnumerationService
                 reply.SessionDesc.CurrentPlayers = session.CurrentPlayers;
                 reply.SessionDesc.MaxPlayers = session.MaxPlayers;
 
-                response.Enqueue(reply, (reply, writer) =>
+                response.Enqueue(reply, writer =>
                 {
                     reply.NameOffset = (int)writer.BaseStream.Position;
                     writer.Write(Encoding.Unicode.GetBytes(session.Name + '\0'));
