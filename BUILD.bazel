@@ -1,4 +1,0 @@
-package_group(
-    name = "directplay4",
-    packages = ["//directplay4/..."],
-)
