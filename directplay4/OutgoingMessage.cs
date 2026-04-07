@@ -30,7 +30,7 @@ class OutgoingMessage
     ///  Creates a DirectPlay message to be sent to a client.
     /// </summary>
     public static unsafe OutgoingMessage Create<T>
-        (IPEndPoint serverEndpoint, ref T command, WriteMoreData<T>? writeMoreData = null)
+        (IPEndPoint sessionEndpoint, ref T command, WriteMoreData<T>? writeMoreData = null)
         where T : unmanaged, ICommand<T>
     {
         int fixedLength = sizeof(DPSP_MSG_HEADER) + sizeof(T);
@@ -64,10 +64,10 @@ class OutgoingMessage
         header.SockAddr = new()
         {
             Family = (short)AddressFamily.InterNetwork,
-            Port = (ushort)IPAddress.HostToNetworkOrder((short)serverEndpoint.Port)
+            Port = (ushort)IPAddress.HostToNetworkOrder((short)sessionEndpoint.Port)
         };
 
-        byte[] address = serverEndpoint.Address.GetAddressBytes();
+        byte[] address = sessionEndpoint.Address.GetAddressBytes();
         header.SockAddr.Address[0] = address[0];
         header.SockAddr.Address[1] = address[1];
         header.SockAddr.Address[2] = address[2];

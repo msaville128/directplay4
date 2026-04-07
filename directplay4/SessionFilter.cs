@@ -12,7 +12,7 @@ readonly struct SessionFilter
     /// <summary>
     ///  A filter that excludes all sessions.
     /// </summary>
-    public static readonly SessionFilter Empty = default;
+    public static readonly SessionFilter Empty = new(_ => false);
 
     /// <summary>
     ///  A filter that matches all sessions.

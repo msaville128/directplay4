@@ -51,7 +51,7 @@ class EnumerationService
                 continue;
             }
 
-            SessionFilter filter = CreateFilter(message.WithPayload<DPSP_MSG_ENUMSESSIONS>().Payload);
+            SessionFilter filter = CreateFilter(message.GetPayload<DPSP_MSG_ENUMSESSIONS>());
             logger.LogDebug("Received from {remote} ({filter})", result.RemoteEndPoint, filter);
 
             // send to the IP address and port provided in the incoming message's header
@@ -66,7 +66,7 @@ class EnumerationService
                 using Socket socket = new(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                 await socket.ConnectAsync(destination, cancellation);
 
-                foreach (Session session in sessions)
+                foreach (Session session in filter.Apply(sessions))
                 {
                     DPSP_MSG_ENUMSESSIONSREPLY reply = new();
                     unsafe
@@ -96,6 +96,10 @@ class EnumerationService
             {
                 // SocketException isn't exceptional in this context, so log only when debugging
                 logger.LogDebug(ex, "Exception thrown when sending sessions to {destination}", destination);
+            }
+            catch (OperationCanceledException)
+            {
+                // server is shutting down
             }
         }
 

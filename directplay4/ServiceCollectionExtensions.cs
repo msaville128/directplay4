@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace DirectPlay4;
 
-public static class Container
+public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddDirectPlaySessions
         (this IServiceCollection services, params IEnumerable<Session> sessions)

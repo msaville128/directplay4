@@ -21,7 +21,7 @@ unsafe readonly ref struct IncomingMessage
     /// <summary>
     ///  An indication of whether this message contains a DirectPlay envelope.
     /// </summary>
-    public bool IsValid => !Data.IsEmpty && Header.HasValidMagic;
+    public bool IsValid => Data.Length >= sizeof(DPSP_MSG_HEADER) && Header.HasValidMagic;
 
     /// <remarks>
     ///  Use <see cref="Create"/> to create an <see cref="IncomingMessage"/> instance.
@@ -55,7 +55,7 @@ unsafe readonly ref struct IncomingMessage
     /// <summary>
     ///  Decodes the payload as <typeparamref name="T"/>.
     /// </summary>
-    public IncomingMessage<T> WithPayload<T>() where T : unmanaged
+    public readonly ref readonly T GetPayload<T>() where T : unmanaged
     {
         if (!HasPayloadSizeFor<T>())
         {
@@ -64,54 +64,6 @@ unsafe readonly ref struct IncomingMessage
         }
 
         ref readonly T payload = ref MemoryMarshal.AsRef<T>(Data[sizeof(DPSP_MSG_HEADER)..]);
-        return new IncomingMessage<T>(this, in payload);
-    }
-}
-
-/// <summary>
-///  An incoming DirectPlay message from a client containing a payload of <typeparamref name="T"/>.
-/// </summary>
-readonly ref struct IncomingMessage<T>(IncomingMessage @base, ref readonly T payload)
-    where T : unmanaged
-{
-    /// <summary>
-    ///  The underlying message without payload information.
-    /// </summary>
-    public readonly IncomingMessage Base = @base;
-
-    /// <summary>
-    ///  The message payload.
-    /// </summary>
-    public readonly ref readonly T Payload = ref payload;
-
-    /// <summary>
-    ///  Attempts to read a null-terminated UTF-16LE string at the specified offset in the message.
-    ///  Returns <c>false</c> if the offset doesn't point to a valid location or string.
-    /// </summary>
-    public unsafe bool TryReadCString(int offset, out ReadOnlySpan<char> @string)
-    {
-        // check for invalid offset
-        int minOffset = sizeof(DPSP_MSG_HEADER) + sizeof(T);
-        int maxOffset = Base.Data.Length - sizeof(char); // null-terminator
-        if (offset < minOffset || offset > maxOffset)
-        {
-            @string = "";
-            return false;
-        }
-
-        // truncate to even length and then reinterpret as UTF-16LE
-        ReadOnlySpan<byte> remaining = Base.Data[offset..(offset + ((Base.Data.Length - offset) & ~1))];
-        ReadOnlySpan<char> chars = MemoryMarshal.Cast<byte, char>(remaining);
-
-        // check for null terminator
-        int delimiterIndex = chars.IndexOf('\0');
-        if (delimiterIndex < 0)
-        {
-            @string = "";
-            return false;
-        }
-
-        @string = chars[..delimiterIndex];
-        return true;
+        return ref payload;
     }
 }
