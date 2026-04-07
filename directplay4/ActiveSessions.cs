@@ -1,45 +1,65 @@
+using Microsoft.Extensions.Logging;
+using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using Microsoft.Extensions.Logging;
 
 namespace DirectPlay4;
 
 /// <summary>
 ///  A thread-safe container of active DirectPlay sessions.
 /// </summary>
-/// <remarks>
-///  Sessions may be registered directly with the service collection to be seeded at startup.
-/// </remarks>
-class ActiveSessions : IEnumerable<Session>
+class ActiveSessions(ILogger<ActiveSessions> logger) : IEnumerable<Session>
 {
-    readonly ILogger logger;
-    readonly ConcurrentBag<Session> sessions;
+    readonly ConcurrentDictionary<Guid, Session> sessions = [];
 
-    public ActiveSessions(ILogger<ActiveSessions> logger, IEnumerable<Session> seedSessions)
+    /// <summary>
+    ///  Adds or updates a session.
+    /// </summary>
+    public void AddOrUpdate(Session session)
     {
-        this.logger = logger;
+        sessions.AddOrUpdate
+        (
+            session.SessionId,
+            addValueFactory: _ =>
+            {
+                logger.LogInformation(
+                    "Added session '{name}' (app: {app} | max: {max} | cur: {current})",
+                    session.Name,
+                    session.Application,
+                    session.MaxPlayers,
+                    session.CurrentPlayers
+                );
 
-        sessions = [.. seedSessions];
-        foreach (Session seed in seedSessions)
-        {
-            LogSessionInfo(seed);
-        }
-    }
+                return session;
+            },
+            updateValueFactory: (_, _) =>
+            {
+                logger.LogInformation(
+                    "Updated session '{name}' (app: {app} | max: {max} | cur: {current})",
+                    session.Name,
+                    session.Application,
+                    session.MaxPlayers,
+                    session.CurrentPlayers
+                );
 
-    // TODO: Add | Remove | Update
-
-    void LogSessionInfo(Session session)
-    {
-        logger.LogInformation(
-            "Added session '{name}' (app: {app} | max: {max})",
-            session.Name,
-            session.Application,
-            session.MaxPlayers
+                return session;
+            }
         );
     }
 
+    /// <summary>
+    ///  Removes a session. Does nothing if a session with the specified id doesn't exist.
+    /// </summary>
+    public void Remove(Guid sessionId)
+    {
+        if (sessions.TryRemove(sessionId, out Session? removedSession))
+        {
+            logger.LogInformation("Removed session '{name}'", removedSession.Name);
+        }
+    }
+
     // IEnumerable<Session>
-    IEnumerator<Session> IEnumerable<Session>.GetEnumerator() => sessions.GetEnumerator();
-    IEnumerator IEnumerable.GetEnumerator() => sessions.GetEnumerator();
+    IEnumerator<Session> IEnumerable<Session>.GetEnumerator() => sessions.Values.GetEnumerator();
+    IEnumerator IEnumerable.GetEnumerator() => sessions.Values.GetEnumerator();
 }

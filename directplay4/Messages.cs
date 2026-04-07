@@ -25,6 +25,8 @@ unsafe struct SOCKADDR_IN
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 unsafe struct DPSP_MSG_HEADER
 {
+    public static readonly int SignatureOffset = sizeof(int) + sizeof(SOCKADDR_IN);
+
     public int Mixed;
     public SOCKADDR_IN SockAddr;
     public fixed byte Magic[4];
@@ -207,7 +209,7 @@ struct DPSP_MSG_REQUESTPLAYERID : ICommand<DPSP_MSG_REQUESTPLAYERID>
     public enum FLAGS : int
     {
         SERVER_PLAYER = 1,
-        LOCAL = 4,
+        LOCAL = 8,
     }
 }
 

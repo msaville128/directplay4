@@ -1,31 +1,28 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
-using System.Threading.Channels;
 using System.Threading.Tasks;
 
 namespace DirectPlay4;
 
 /// <summary>
-///  A persistent service for handling session enumeration requests from clients over UDP.
+///  A persistent service for handling DirectPlay session enumeration requests from clients.
 /// </summary>
 class EnumerationService
     (
         ILogger<EnumerationService> logger,
-        Channel<OutgoingMessage> output,
+        ServerInfo serverInfo,
         ActiveSessions sessions
     )
     : BackgroundService
 {
-    const int BroadcastPort = 47624;
-
     /// <summary>
-    ///  Continuously listens for DPSP_MSG_ENUMSESSIONS requests over UDP and responds with sessions
-    ///  matching the request.
+    ///  Starts the DirectPlay session enumeration service.
     /// </summary>
     protected override async Task ExecuteAsync(CancellationToken cancellation)
     {
@@ -33,15 +30,13 @@ class EnumerationService
 
         // DPSP_MSG_ENUMSESSIONS messages are broadcast over UDP
         using Socket inbound = new(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-
-        IPEndPoint localEndpoint = new(IPAddress.Any, BroadcastPort);
-        inbound.Bind(localEndpoint);
+        inbound.Bind(serverInfo.BroadcastEndpoint);
 
         Memory<byte> buffer = new byte[0x10000]; // max datagram size
         while (!cancellation.IsCancellationRequested)
         {
-            var result = await inbound.ReceiveFromAsync(buffer, localEndpoint, cancellation);
-            IncomingMessage message = IncomingMessage.Create(buffer.Span[..result.ReceivedBytes]);
+            var result = await inbound.ReceiveFromAsync(buffer, serverInfo.BroadcastEndpoint, cancellation);
+            var message = IncomingMessage.Create(buffer.Span[..result.ReceivedBytes]);
 
             bool isValidMessage =
                 message.IsValid &&
@@ -57,30 +52,49 @@ class EnumerationService
             SessionFilter filter = CreateFilter(message.WithPayload<DPSP_MSG_ENUMSESSIONS>().Payload);
             logger.LogDebug("Received from {remote} ({filter})", result.RemoteEndPoint, filter);
 
-            // send to the TCP port provided in the incoming message's header
-            OutgoingMessage response = OutgoingMessage.To(new IPEndPoint(
+            // send to the IP address and port provided in the incoming message's header
+            IPEndPoint destination = new
+            (
                 address: ((IPEndPoint)result.RemoteEndPoint).Address,
                 port: (ushort)IPAddress.NetworkToHostOrder((short)message.Header.SockAddr.Port)
-            ));
+            );
 
-            foreach (Session session in filter.Apply(sessions))
+            try
             {
-                DPSP_MSG_ENUMSESSIONSREPLY reply = new();
-                unsafe { reply.SessionDesc.StructSize = sizeof(DPSESSIONDESC2); }
+                using Socket socket = new(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                await socket.ConnectAsync(destination, cancellation);
 
-                reply.SessionDesc.Application = session.Application;
-                reply.SessionDesc.CurrentPlayers = session.CurrentPlayers;
-                reply.SessionDesc.MaxPlayers = session.MaxPlayers;
-
-                response.Enqueue(reply, writer =>
+                foreach (Session session in sessions)
                 {
-                    reply.NameOffset = (int)writer.BaseStream.Position;
-                    writer.Write(Encoding.Unicode.GetBytes(session.Name + '\0'));
-                });
-            }
+                    DPSP_MSG_ENUMSESSIONSREPLY reply = new();
+                    unsafe
+                    {
+                        reply.SessionDesc.StructSize = sizeof(DPSESSIONDESC2);
+                        reply.SessionDesc.Reserved[0] = 1 << 16;
+                    }
+                    reply.SessionDesc.Flags = DPSESSIONDESC2.FLAGS.CLIENT_SERVER;
 
-            // if the outgoing message queue is full, then just drop the message
-            _ = output.Writer.TryWrite(response);
+                    reply.SessionDesc.Application = session.Application;
+                    reply.SessionDesc.CurrentPlayers = session.CurrentPlayers;
+                    reply.SessionDesc.MaxPlayers = session.MaxPlayers;
+                    reply.SessionDesc.Instance = session.SessionId;
+
+                    var response = OutgoingMessage.Create(serverInfo.ServiceEndpoint, ref reply,
+                        (ref DPSP_MSG_ENUMSESSIONSREPLY reply, BinaryWriter writer) =>
+                        {
+                            reply.NameOffset = (int)writer.BaseStream.Position - DPSP_MSG_HEADER.SignatureOffset;
+                            writer.Write(Encoding.Unicode.GetBytes(session.Name + '\0'));
+                        });
+
+                    await socket.SendAsync(response.Data, cancellation);
+                    logger.LogDebug("Sent '{session}' to {destination}", session.Name, destination);
+                }
+            }
+            catch (SocketException ex)
+            {
+                // SocketException isn't exceptional in this context, so log only when debugging
+                logger.LogDebug(ex, "Exception thrown when sending sessions to {destination}", destination);
+            }
         }
 
         logger.LogInformation("DirectPlay enumeration service stopped");

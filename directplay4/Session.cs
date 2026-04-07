@@ -18,6 +18,11 @@ public record Session
     public required Guid Application { get; init; }
 
     /// <summary>
+    ///  Unique id for this session.
+    /// </summary>
+    public Guid SessionId { get; init; } = Guid.NewGuid();
+
+    /// <summary>
     ///  Current number of players in this session.
     /// </summary>
     public int CurrentPlayers { get; init; }

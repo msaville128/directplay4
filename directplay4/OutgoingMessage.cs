@@ -1,55 +1,36 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace DirectPlay4;
 
 /// <summary>
-///  A batch of DirectPlay commands to be sent to a remote endpoint.
+///  A DirectPlay message to be sent to a client.
 /// </summary>
 class OutgoingMessage
 {
-    readonly List<byte[]> batch = [];
+    public delegate void WriteMoreData<T>(ref T command, BinaryWriter writer);
 
     /// <remarks>
-    ///  Use <see cref="To"/> to create an <see cref="OutgoingMessage"/> instance.
+    ///  Use <see cref="Create"/> to create an <see cref="OutgoingMessage"/> instance.
     /// </remarks>
-    OutgoingMessage(IPEndPoint destination)
+    OutgoingMessage(ReadOnlyMemory<byte> data)
     {
-        Destination = destination;
+        Data = data;
     }
 
     /// <summary>
-    ///  The intended recipient of this message.
+    ///  The data contained in this message.
     /// </summary>
-    public IPEndPoint Destination { get; }
+    public ReadOnlyMemory<byte> Data { get; }
 
     /// <summary>
-    ///  Begins constructing a batch of DirectPlay commands to send to a remote endpoint.
+    ///  Creates a DirectPlay message to be sent to a client.
     /// </summary>
-    public static OutgoingMessage To(IPEndPoint destination)
-    {
-        return new OutgoingMessage(destination);
-    }
-
-    /// <summary>
-    ///  Adds a DirectPlay command without variable-length data to the batch.
-    /// </summary>
-    public OutgoingMessage Enqueue<T>(T command)
-        where T : unmanaged, ICommand<T>
-    {
-        return Enqueue(command, _ => { });
-    }
-
-    /// <summary>
-    ///  Adds a DirectPlay command with variable-length data to the batch.
-    /// </summary>
-    public unsafe OutgoingMessage Enqueue<T>(T command, Action<BinaryWriter> writeVariableData)
+    public static unsafe OutgoingMessage Create<T>
+        (IPEndPoint serverEndpoint, ref T command, WriteMoreData<T>? writeMoreData = null)
         where T : unmanaged, ICommand<T>
     {
         int fixedLength = sizeof(DPSP_MSG_HEADER) + sizeof(T);
@@ -57,7 +38,7 @@ class OutgoingMessage
         using MemoryStream stream = new();
         using BinaryWriter writer = new(stream);
 
-        void write<TStruct>(ref TStruct value) where TStruct : unmanaged
+        void writeStruct<TStruct>(ref TStruct value) where TStruct : unmanaged
         {
             Span<TStruct> span = MemoryMarshal.CreateSpan(ref value, 1);
             writer.Write(MemoryMarshal.Cast<TStruct, byte>(span));
@@ -65,14 +46,14 @@ class OutgoingMessage
 
         stream.SetLength(fixedLength);
         stream.Position = fixedLength;
-        writeVariableData(writer);
+        writeMoreData?.Invoke(ref command, writer);
 
         DPSP_MSG_HEADER header = new()
         {
             CommandId = T.CommandId,
             Version = 14,
             Size = (int)stream.Length,
-            Token = 0xBAB
+            Token = 0xFAB
         };
 
         header.Magic[0] = (byte)'p';
@@ -83,35 +64,19 @@ class OutgoingMessage
         header.SockAddr = new()
         {
             Family = (short)AddressFamily.InterNetwork,
-            Port = (ushort)IPAddress.HostToNetworkOrder((short)Destination.Port)
+            Port = (ushort)IPAddress.HostToNetworkOrder((short)serverEndpoint.Port)
         };
 
-        byte[] address = Destination.Address.GetAddressBytes();
+        byte[] address = serverEndpoint.Address.GetAddressBytes();
         header.SockAddr.Address[0] = address[0];
         header.SockAddr.Address[1] = address[1];
         header.SockAddr.Address[2] = address[2];
         header.SockAddr.Address[3] = address[3];
 
         stream.Position = 0;
-        write(ref header);
-        write(ref command);
+        writeStruct(ref header);
+        writeStruct(ref command);
 
-        batch.Add(stream.ToArray());
-        return this;
-    }
-
-    /// <summary>
-    ///  Establishes a TCP/IP connection to the destination and then sends each command in this
-    ///  batch sequentially. Socket exceptions are unhandled.
-    /// </summary>
-    public async Task SendAsync(CancellationToken cancellation)
-    {
-        using Socket socket = new(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-        await socket.ConnectAsync(Destination);
-
-        foreach (ReadOnlyMemory<byte> command in batch)
-        {
-            await socket.SendAsync(command, cancellation);
-        }
+        return new OutgoingMessage(stream.ToArray());
     }
 }
