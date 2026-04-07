@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
@@ -16,11 +17,12 @@ namespace DirectPlay4;
 class EnumerationService
     (
         ILogger<EnumerationService> logger,
-        ServerInfo serverInfo,
-        ActiveSessions sessions
+        IEnumerable<Session> sessions
     )
     : BackgroundService
 {
+    static readonly IPEndPoint BroadcastEndpoint = new(IPAddress.Any, 47624);
+
     /// <summary>
     ///  Starts the DirectPlay session enumeration service.
     /// </summary>
@@ -30,12 +32,12 @@ class EnumerationService
 
         // DPSP_MSG_ENUMSESSIONS messages are broadcast over UDP
         using Socket inbound = new(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-        inbound.Bind(serverInfo.BroadcastEndpoint);
+        inbound.Bind(BroadcastEndpoint);
 
         Memory<byte> buffer = new byte[0x10000]; // max datagram size
         while (!cancellation.IsCancellationRequested)
         {
-            var result = await inbound.ReceiveFromAsync(buffer, serverInfo.BroadcastEndpoint, cancellation);
+            var result = await inbound.ReceiveFromAsync(buffer, BroadcastEndpoint, cancellation);
             var message = IncomingMessage.Create(buffer.Span[..result.ReceivedBytes]);
 
             bool isValidMessage =
@@ -79,7 +81,7 @@ class EnumerationService
                     reply.SessionDesc.MaxPlayers = session.MaxPlayers;
                     reply.SessionDesc.Instance = session.SessionId;
 
-                    var response = OutgoingMessage.Create(serverInfo.ServiceEndpoint, ref reply,
+                    var response = OutgoingMessage.Create(session.Endpoint, ref reply,
                         (ref DPSP_MSG_ENUMSESSIONSREPLY reply, BinaryWriter writer) =>
                         {
                             reply.NameOffset = (int)writer.BaseStream.Position - DPSP_MSG_HEADER.SignatureOffset;

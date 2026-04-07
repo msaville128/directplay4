@@ -1,15 +1,18 @@
 using Microsoft.Extensions.DependencyInjection;
+using System.Collections.Generic;
 
 namespace DirectPlay4;
 
 public static class Container
 {
-    public static IServiceCollection AddDirectPlay4(this IServiceCollection services, ServerInfo? serverInfo = null)
+    public static IServiceCollection AddDirectPlaySessions
+        (this IServiceCollection services, params IEnumerable<Session> sessions)
     {
-        return services
-            .AddHostedService<EnumerationService>()
-            .AddHostedService<SessionService>()
-            .AddSingleton(serverInfo ?? new())
-            .AddSingleton<ActiveSessions>();
+        foreach (Session session in sessions)
+        {
+            services.AddSingleton(session);
+        }
+
+        return services.AddHostedService<EnumerationService>();
     }
 }

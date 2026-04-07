@@ -1,4 +1,5 @@
 using System;
+using System.Net;
 
 namespace DirectPlay4;
 
@@ -18,6 +19,11 @@ public record Session
     public required Guid Application { get; init; }
 
     /// <summary>
+    ///  The TCP/IP endpoint for this session.
+    /// </summary>
+    public required IPEndPoint Endpoint { get; init; }
+
+    /// <summary>
     ///  Unique id for this session.
     /// </summary>
     public Guid SessionId { get; init; } = Guid.NewGuid();
@@ -30,5 +36,5 @@ public record Session
     /// <summary>
     ///  Maximum number of players allowed in this session.
     /// </summary>
-    public int MaxPlayers { get; init; }
+    public int MaxPlayers { get; init; } = 100;
 }
