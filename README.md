@@ -1,15 +1,10 @@
 # DirectPlay4.NET
-This is a [DirectPlay 4](https://learn.microsoft.com/en-us/openspecs/windows_protocols/mc-dpl4cs/10eeb2a2-da0e-4ce2-98dc-ba1a87092a68) game session enumeration server.
+DirectPlay 4 is an obsolete multiplayer protocol that was released in 1998 and used until the mid-2000s. This .NET library exists to support the preservation and restoration of PC games from this time period.
 
-DirectPlay 4 is an obsolete networking API that was released in 1998 and used until the mid-2000s.
+## Features
 
-This server exists to support the preservation and restoration of PC games from this time period. It listens for requests over UDP and responds with a configured list of sessions, allowing games to connect to remote hosts.
-
-## Standalone server
-Coming soon
-
-## .NET Generic Host / ASP.NET
-Add the server to your host's service collection.
+### Session Enumeration Server
+The enumeration server listens for requests over UDP and responds with a configured list of sessions, allowing games to connect to remote hosts.
 
 ```csharp
 services.AddDirectPlaySessions(
@@ -20,4 +15,27 @@ services.AddDirectPlaySessions(
         Endpoint = IPEndPoint.Parse("127.0.0.1:2300"),
         MaxPlayers = 100
     });
+```
+
+### Message Encoder/Decoder
+If you need to implement other parts of the protocol, the `IncomingMessage` and `OutgoingMessage` structs make it easy to encode and decode DirectPlay messages.
+
+```csharp
+// decode
+var incoming = IncomingMessage.Create(buffer);
+var command = incoming.GetPayload<DPSP_MSG_REQUESTPLAYERID>();
+
+// encode
+var reply = new DPSP_MSG_REQUESTPLAYERREPLY();
+var outgoing = OutgoingMessage.Create(IPEndPoint.Parse("127.0.0.1:2300"), ref reply);
+
+// encode with variable-length data
+var replyWithVariableData = new DPSP_MSG_ENUMSESSIONSREPLY();
+var outgoing = OutgoingMessage.Create(IPEndPoint.Parse("127.0.0.1:2300"), ref reply, WriteVariableData);
+
+void WriteVariableData(ref DPSP_MSG_ENUMSESSIONSREPLY reply, int offset, BinaryWriter writer)
+{
+    reply.NameOffset = offset;
+    writer.Write(Encoding.Unicode.GetBytes(session.Name + '\0'));
+}
 ```

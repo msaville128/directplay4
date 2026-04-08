@@ -6,7 +6,7 @@ namespace DirectPlay4;
 /// <summary>
 ///  An incoming DirectPlay message from a client.
 /// </summary>
-unsafe readonly ref struct IncomingMessage
+public unsafe readonly ref struct IncomingMessage
 {
     /// <summary>
     ///  The DirectPlay message header.

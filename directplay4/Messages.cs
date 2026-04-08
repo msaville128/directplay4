@@ -6,14 +6,14 @@ namespace DirectPlay4;
 // Only fixed-length data are defined here!
 // Variable-length data are appended at the end of the message.
 
-interface ICommand<T> where T : unmanaged, ICommand<T>
+public interface ICommand<T> where T : unmanaged, ICommand<T>
 {
     public static abstract short CommandId { get; }
 }
 
 // https://learn.microsoft.com/en-us/openspecs/windows_protocols/mc-dpl4cs/0f4f646d-9327-44a9-bb4c-2fd72df2e95d
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-unsafe struct SOCKADDR_IN
+public unsafe struct SOCKADDR_IN
 {
     public short Family;
     public ushort Port;
@@ -23,7 +23,7 @@ unsafe struct SOCKADDR_IN
 
 // https://learn.microsoft.com/en-us/openspecs/windows_protocols/mc-dpl4cs/caf0ddbe-d56d-474f-9c2a-f47c84cc0da9
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-unsafe struct DPSP_MSG_HEADER
+public unsafe struct DPSP_MSG_HEADER
 {
     public static readonly int SignatureOffset = sizeof(int) + sizeof(SOCKADDR_IN);
 
@@ -56,7 +56,7 @@ unsafe struct DPSP_MSG_HEADER
 
 // https://learn.microsoft.com/en-us/openspecs/windows_protocols/mc-dpl4cs/8743fe84-59ab-4e98-b0a0-362aa8ce9b1d
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-unsafe struct DPSESSIONDESC2
+public unsafe struct DPSESSIONDESC2
 {
     public int StructSize;
     public FLAGS Flags;
@@ -91,7 +91,7 @@ unsafe struct DPSESSIONDESC2
 
 // https://learn.microsoft.com/en-us/openspecs/windows_protocols/mc-dpl4cs/9f61f223-88e8-4436-88ed-62b68ea23c86
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-struct DPSP_MSG_ENUMSESSIONSREPLY : ICommand<DPSP_MSG_ENUMSESSIONSREPLY>
+public struct DPSP_MSG_ENUMSESSIONSREPLY : ICommand<DPSP_MSG_ENUMSESSIONSREPLY>
 {
     public static short CommandId => 1;
 
@@ -101,7 +101,7 @@ struct DPSP_MSG_ENUMSESSIONSREPLY : ICommand<DPSP_MSG_ENUMSESSIONSREPLY>
 
 // https://learn.microsoft.com/en-us/openspecs/windows_protocols/mc-dpl4cs/998a213f-f3d4-4613-92b9-41c1739bfcf5
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-struct DPSP_MSG_ENUMSESSIONS : ICommand<DPSP_MSG_ENUMSESSIONS>
+public struct DPSP_MSG_ENUMSESSIONS : ICommand<DPSP_MSG_ENUMSESSIONS>
 {
     public static short CommandId => 2;
 

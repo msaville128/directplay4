@@ -9,9 +9,9 @@ namespace DirectPlay4;
 /// <summary>
 ///  A DirectPlay message to be sent to a client.
 /// </summary>
-class OutgoingMessage
+public class OutgoingMessage
 {
-    public delegate void WriteMoreData<T>(ref T command, BinaryWriter writer);
+    public delegate void WriteMoreData<T>(ref T command, int offset, BinaryWriter writer);
 
     /// <remarks>
     ///  Use <see cref="Create"/> to create an <see cref="OutgoingMessage"/> instance.
@@ -46,7 +46,9 @@ class OutgoingMessage
 
         stream.SetLength(fixedLength);
         stream.Position = fixedLength;
-        writeMoreData?.Invoke(ref command, writer);
+
+        int offset = (int)stream.Position - DPSP_MSG_HEADER.SignatureOffset;
+        writeMoreData?.Invoke(ref command, offset, writer);
 
         DPSP_MSG_HEADER header = new()
         {

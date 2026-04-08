@@ -51,7 +51,7 @@ class EnumerationService
                 continue;
             }
 
-            SessionFilter filter = CreateFilter(message.GetPayload<DPSP_MSG_ENUMSESSIONS>());
+            SessionFilter filter = CreateFilter(in message.GetPayload<DPSP_MSG_ENUMSESSIONS>());
             logger.LogDebug("Received from {remote} ({filter})", result.RemoteEndPoint, filter);
 
             // send to the IP address and port provided in the incoming message's header
@@ -82,9 +82,9 @@ class EnumerationService
                     reply.SessionDesc.Instance = session.SessionId;
 
                     var response = OutgoingMessage.Create(session.Endpoint, ref reply,
-                        (ref DPSP_MSG_ENUMSESSIONSREPLY reply, BinaryWriter writer) =>
+                        (ref DPSP_MSG_ENUMSESSIONSREPLY reply, int offset, BinaryWriter writer) =>
                         {
-                            reply.NameOffset = (int)writer.BaseStream.Position - DPSP_MSG_HEADER.SignatureOffset;
+                            reply.NameOffset = offset;
                             writer.Write(Encoding.Unicode.GetBytes(session.Name + '\0'));
                         });
 
@@ -109,7 +109,7 @@ class EnumerationService
     /// <summary>
     ///  Creates a session filter for the incoming request.
     /// </summary>
-    SessionFilter CreateFilter(DPSP_MSG_ENUMSESSIONS request)
+    SessionFilter CreateFilter(in DPSP_MSG_ENUMSESSIONS request)
     {
         SessionFilter filter = SessionFilter.Default
             .WithApplication(request.Application);
